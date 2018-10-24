@@ -37,18 +37,21 @@ down_sky <- rep(0.1 / 2101, 2101)
 down0_sky <- rep(0.9 / 2101, 2101)
 czen <- 0.451
 
-source("twostream.R")
-result <- sw_two_stream(
-  czen,
-  iota_g,
-  pft,
-  lai, wai, cai,
-  orient_factor, clumping_factor,
-  leaf_reflect, leaf_trans,
-  wood_reflect, wood_trans,
-  down_sky, down0_sky
-)
-plot(400:2500, result$albedo, ylim = c(0, 3e-4))
+if (FALSE) {
+
+  source("twostream.R")
+  result <- sw_two_stream(
+    czen,
+    iota_g,
+    pft,
+    lai, wai, cai,
+    orient_factor, clumping_factor,
+    leaf_reflect, leaf_trans,
+    wood_reflect, wood_trans,
+    down_sky, down0_sky
+  )
+
+}
 
 ## # Read PAR data from CRUNCEP
 ## dl <- PEcAn.data.atmosphere::download.CRUNCEP(

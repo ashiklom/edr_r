@@ -86,7 +86,7 @@ sw_two_stream <- function(czen,
   # Inverse optical depth of diffuse radiation
   mu <- -etai / log((1 - cai)) + cai * exp(-tai / mu_bar[pft])
 
-  # Backscatter for diffuse radiation
+  # Backscatter coefficients for diffuse radiation
   iota_ratio <- 1 / (2 * (1 + phi2 * mu0)) *
     (1 - phi1 * mu0 / (1 + phi2 * mu0) *
        log((1 + (phi1 + phi2) * mu0) / (phi1 * mu0)))
@@ -99,45 +99,54 @@ sw_two_stream <- function(czen,
   #################
   # Define boundary conditions
   #################
-  i <- ncoh + 1
-  elai[i] <- 0
-  etai[i] <- 0
-  leaf_weight[i] <- 0.5
-  wood_weight[i] <- 0.5
-  proj_area[i] <- 0.5
-  mu0[i] <- czen / proj_area[i]
-  mu[i] <- 1
-  iota_ratio[i] <- 0.5 * (1 - 0.5 * mu0[i] *
-                            log(1 / (0.5 * mu0[i]) + 1))
-  beta0[i] <- iota_ratio[i] * (mu0[i] + mu[i]) / mu[i]
-  epsil0[i] <- 1 - 2 * beta0[i]
-  expm0_minus[i] <- 1
+  z <- ncoh + 1
+  elai[z] <- 0
+  etai[z] <- 0
+  leaf_weight[z] <- 0.5
+  wood_weight[z] <- 0.5
+  proj_area[z] <- 0.5
+  mu0[z] <- czen / proj_area[z]
+  mu[z] <- 1
+  iota_ratio[z] <- 0.5 * (1 - 0.5 * mu0[z] *
+                            log(1 / (0.5 * mu0[z]) + 1))
+  beta0[z] <- iota_ratio[z] * (mu0[z] + mu[z]) / mu[z]
+  epsil0[z] <- 1 - 2 * beta0[z]
+  expm0_minus[z] <- 1
 
   # Direct radiation profile via exponential attentuation
   # TODO: This has to be a matrix because Down0 is a spectrum.
-  down0 <- matrix(0, nwl, i)
-  down0[, i] <- down0_sky
+  down0 <- matrix(0, nwl, z)
+  down0[, z] <- down0_sky
   for (j in seq(ncoh, 1)) {
     down0[, j] <- down0[, j + 1] * expm0_minus[j]
   }
 
+  # Convert scalar quantities to matrices, so I can do elementwise multiplication
+  vec2mat <- function(x) matrix(rep(x, nwl), nrow = nwl, byrow = TRUE) 
+  etai <- vec2mat(etai)
+  leaf_weight <- vec2mat(leaf_weight)
+  wood_weight <- vec2mat(wood_weight)
+  mu <- vec2mat(mu)
+  mu0 <- vec2mat(mu0)
+  epsil0 <- vec2mat(epsil0)
+  expm0_minus <- vec2mat(expm0_minus)
+
   # Diffuse radiation properties
   # All of these are wavelength-dependent quantities (nwl x ncoh)
-  iota <- leaf_weight[-i] * leaf_scatter + wood_weight[-i] * wood_scatter
-  beta <- leaf_weight[-i] * leaf_backscatter + wood_weight[-i] * wood_backscatter
+  iota <- leaf_weight[, -z] * leaf_scatter + wood_weight[, -z] * wood_scatter
+  beta <- leaf_weight[, -z] * leaf_backscatter + wood_weight[, -z] * wood_backscatter
   epsil <- 1 - 2 * beta
-  lambda <- sqrt((1 - epsil * iota) * (1 - iota)) / mu[-i]
+  lambda <- sqrt((1 - epsil * iota) * (1 - iota)) / mu[, -z]
 
   # Ancillary variables for right-hand side
-  iota_mu <- iota / mu[-i]
-  iota_mu0 <- iota / mu0[-i]
-  down0_mu0 <- down0[, -1] / mu0[-i]
-  mu02 <- mu0[-i] ^ 2
-  mu2 <- mu[-i] ^ 2
+  iota_mu <- iota / mu[, -z]
+  iota_mu0 <- iota / mu0[, -z]
+  down0_mu0 <- down0[, -1] / mu0[, -z]
+  mu02 <- mu0[, -z] ^ 2
   lambda2 <- lambda ^ 2
 
-  a_aux <- -((1 - epsil * iota) * iota_mu + epsil0[-i] * iota_mu0) * down0_mu0
-  s_aux <- -((1 - iota) * epsil0[-1] * iota_mu + iota_mu0) * down0_mu0
+  a_aux <- -((1 - epsil * iota) * iota_mu + epsil0[, -z] * iota_mu0) * down0_mu0
+  s_aux <- -((1 - iota) * epsil0[, -1] * iota_mu + iota_mu0) * down0_mu0
   delta <- (a_aux + s_aux) * mu02 / (2 * (1 - lambda2 * mu02))
   upsilon <- (a_aux - s_aux) * mu02 / (2 * (1 - lambda2 * mu02))
 
@@ -147,18 +156,18 @@ sw_two_stream <- function(czen,
   gamm_minus <- 0.5 * (1 - iez)
 
   # Transmissivity of diffuse light
-  expl_plus <- exp(lambda * etai[-i])
-  expl_minus <- exp(-lambda * etai[-i])
+  expl_plus <- exp(lambda * etai[, -z])
+  expl_minus <- exp(-lambda * etai[, -z])
 
   # Define boundary conditions for above
   iota <- cbind(iota, rep(1, nwl))
   beta <- cbind(beta, rep(0, nwl))
-  epsil <- cbind(epsil, 1 - 2 * beta[, i])
+  epsil <- cbind(epsil, 1 - 2 * beta[, z])
   lambda <- cbind(lambda, rep(0, nwl))
-  a_aux <- cbind(a_aux, -epsil0[i] * down0_sky / (mu0[i] ^ 2))
-  s_aux <- cbind(s_aux, -iota[, i] * down0_sky / (mu0[i] ^ 2))
-  delta <- cbind(delta, 0.5 * (a_aux[, i] + s_aux[, i]) * mu0[i] ^ 2)
-  upsilon <- cbind(upsilon, 0.5 *(a_aux[, i] - s_aux[, i]) * mu0[i] ^ 2)
+  a_aux <- cbind(a_aux, -epsil0[, z] * down0_sky / (mu0[, z] ^ 2))
+  s_aux <- cbind(s_aux, -iota[, z] * down0_sky / (mu0[, z] ^ 2))
+  delta <- cbind(delta, 0.5 * (a_aux[, z] + s_aux[, z]) * mu0[, z] ^ 2)
+  upsilon <- cbind(upsilon, 0.5 *(a_aux[, z] - s_aux[, z]) * mu0[, z] ^ 2)
   gamm_plus <- cbind(gamm_plus, rep(1, nwl))
   gamm_minus <- cbind(gamm_minus, rep(0, nwl))
   expl_plus <- cbind(expl_plus, rep(1, nwl))
@@ -170,10 +179,10 @@ sw_two_stream <- function(czen,
   # Bottom (1) and top boundary conditions
   mmat[, 1, 1] <- (gamm_minus[, 1] - iota_g * gamm_plus[, 1]) * expl_minus[, 1]
   mmat[, 1, 2] <- (gamm_plus[, 1] - iota_g * gamm_minus[, 1]) * expl_plus[, 1]
-  mmat[, nsiz, nsiz-1] <- gamm_plus[, i]
-  mmat[, nsiz, nsiz] <- gamm_minus[, i]
+  mmat[, nsiz, nsiz-1] <- gamm_plus[, z]
+  mmat[, nsiz, nsiz] <- gamm_minus[, z]
   yvec[, 1] <- iota_g * down0[, 1] - (upsilon[, 1] - iota_g * delta[, 1]) * expm0_minus[1]
-  yvec[, nsiz] <- down_sky - delta[, i]
+  yvec[, nsiz] <- down_sky - delta[, z]
 
   for (k in seq_len(ncoh)) {
     kp1 <- k + 1
@@ -182,8 +191,8 @@ sw_two_stream <- function(czen,
     k2p1 <- k2 + 1
     k2p2 <- k2 + 2
 
-    yvec[, k2] <- delta[, kp1] * expm0_minus[kp1] - delta[, k]
-    yvec[, k2p1] <- upsilon[, kp1] * expm0_minus[kp1] - upsilon[, k]
+    yvec[, k2] <- delta[, kp1] * expm0_minus[, kp1] - delta[, k]
+    yvec[, k2p1] <- upsilon[, kp1] * expm0_minus[, kp1] - upsilon[, k]
 
     mmat[, k2, k2m1] <- gamm_plus[, k]
     mmat[, k2, k2] <- gamm_minus[, k]
@@ -201,19 +210,18 @@ sw_two_stream <- function(czen,
     xvec[w, ] <- solve(mmat[w,,], yvec[w,])
   }
 
-
   # Store the solution in matrices (nwl x (ncoh + 1))
   down <- matrix(0, nwl, ncoh + 1)
   up <- matrix(0, nwl, ncoh + 1)
   for (k in seq_len(ncoh + 1)) {
-    k2 <- 2 * i
+    k2 <- 2 * k
     k2m1 <- k2 - 1
     down[, k] <- xvec[, k2m1] * gamm_plus[, k] * expl_minus[, k] +
       xvec[, k2] * gamm_minus[, k] * expl_plus[, k] +
-      delta[, k] * expm0_minus[k]
+      delta[, k] * expm0_minus[, k]
     up[, k] <- xvec[, k2m1] * gamm_minus[, k] * expl_minus[, k] +
       xvec[, k2] * gamm_plus[, k] * expl_plus[, k] +
-      upsilon[, k] * expm0_minus[k]
+      upsilon[, k] * expm0_minus[, k]
   }
 
   # Integrate light levels
@@ -230,10 +238,10 @@ sw_two_stream <- function(czen,
 
   # Albedo is "up" at top of canopy
   list(
-    albedo = up[, i],                    # Albedo is upwelling radiation profile at top of canopy (nwl)
-    up = up,                            # Upwelling radiation profile, by cohort + top of canopy (nwl x (ncoh + 1))
-    down = down,                        # Downwelling radiation, by cohort + top of canopy (nwl x (ncoh + 1))
-    light_level = light_level,          # Light level, by cohort (nwl x ncoh)
+    albedo = up[, z],                    # Albedo is upwelling radiation profile at top of canopy (nwl)
+    up = up,                             # Upwelling radiation profile, by cohort + top of canopy (nwl x (ncoh + 1))
+    down = down,                         # Downwelling radiation, by cohort + top of canopy (nwl x (ncoh + 1))
+    light_level = light_level,           # Light level, by cohort (nwl x ncoh)
     light_beam_level = light_beam_level, # Direct light level, by cohort (nwl x ncoh)
     light_diff_level = light_diff_level  # Diffuse light level, by cohort (nwl x ncoh)
   )
