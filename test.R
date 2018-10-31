@@ -35,8 +35,8 @@ wood_trans <- matrix(0, 2101, max(pft))
 
 # For now, assume constant solar spectrum
 # Adjust with data later
-down_sky <- rep(0.8, 2101)
-down0_sky <- rep(0.2, 2101)
+down_sky <- rep(0.1, 2101)
+down0_sky <- rep(0.9, 2101)
 czen <- 0.451
 
 result <- sw_two_stream(
@@ -49,4 +49,4 @@ result <- sw_two_stream(
   wood_reflect, wood_trans,
   down_sky, down0_sky
 )
-plot(result$albedo, type = 'l')
+plot(400:2500, result$albedo, type = 'l')
