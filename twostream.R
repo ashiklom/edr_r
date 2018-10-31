@@ -74,17 +74,16 @@ sw_two_stream <- function(czen,
   # Loop over cohorts -- vectorizing here
   elai <- clumping_factor * lai
   etai <- elai + wai
-  tai <- lai + wai
 
   leaf_weight <- elai / etai
   wood_weight <- 1 - leaf_weight
 
   # Inverse optical depth of direct radiation
   proj_area <- phi1 + phi2 * czen
-  mu0 <- -etai / log((1 - cai)) + cai * exp(-proj_area * etai / (cai * czen))
+  mu0 <- -etai / log((1 - cai) + cai * exp(-proj_area * etai / (cai * czen)))
 
   # Inverse optical depth of diffuse radiation
-  mu <- -etai / log((1 - cai)) + cai * exp(-tai / mu_bar[pft])
+  mu <- -etai / log((1 - cai) + cai * exp(-etai / mu_bar))
 
   # Backscatter coefficients for diffuse radiation
   iota_ratio <- 1 / (2 * (1 + phi2 * mu0)) *
