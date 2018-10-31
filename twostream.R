@@ -145,7 +145,7 @@ sw_two_stream <- function(czen,
   lambda2 <- lambda ^ 2
 
   a_aux <- -((1 - epsil * iota) * iota_mu + epsil0[, -z] * iota_mu0) * down0_mu0
-  s_aux <- -((1 - iota) * epsil0[, -1] * iota_mu + iota_mu0) * down0_mu0
+  s_aux <- -((1 - iota) * epsil0[, -z] * iota_mu + iota_mu0) * down0_mu0
   delta <- (a_aux + s_aux) * mu02 / (2 * (1 - lambda2 * mu02))
   upsilon <- (a_aux - s_aux) * mu02 / (2 * (1 - lambda2 * mu02))
 
