@@ -1,6 +1,8 @@
+#' R implementation of ED2 two-stream radiation model
+#'
 #' @param czen Cosine of angle of incidence (`cosaio`)
-#' @param iota_g Ground albedo (nwl)
-#' @param pft PFT identities of each cohort (ncoh)
+#' @param iota_g Ground (soil + snow) albedo (nwl)
+#' @param pft PFT identities of each cohort, as integer (ncoh)
 #' @param lai Leaf area index of each cohort (ncoh)
 #' @param wai Wood area index of each cohort (ncoh)
 #' @param cai Crown area of each cohort (ncoh)
@@ -12,9 +14,6 @@
 #' @param wood_trans Wood transmittance spectra (nwl * npft)
 #' @param down_sky Normalized diffuse solar spectrum (nwl)
 #' @param down0_sky Normalized direct solar spectrum (nwl)
-#' @param ncoh Number of cohorts (`cohort_count`)
-#' @param phi1 Phi1 coefficient (npft)
-#' @param phi2 Phi2 coefficient (npft)
 #' @return
 #' @author Alexey Shiklomanov
 sw_two_stream <- function(czen,
@@ -27,6 +26,7 @@ sw_two_stream <- function(czen,
                           down_sky, down0_sky
                           ) {
 
+  # Sanity checks
   nwl <- length(iota_g)
   stopifnot(
     nrow(leaf_reflect) == nwl,
@@ -40,6 +40,24 @@ sw_two_stream <- function(czen,
     length(lai) == ncoh,
     length(wai) == ncoh,
     length(cai) == ncoh
+  )
+
+  stopifnot(abs(czen) <= 1) 
+
+  # All spectra are between 0 and 1
+  stopifnot(
+    any(iota_g > 1 | iota_g < 0),
+    any(leaf_reflect > 1 | leaf_reflect < 0),
+    any(leaf_trans > 1 | leaf_trans < 0),
+    any(wood_reflect > 1 | wood_reflect < 0),
+    any(wood_trans > 1 | wood_trans < 0)
+  )
+
+  # Incident radiation has to sum to 1 across all wavelengths
+  stopifnot(
+    any(down_sky > 1 | down_sky < 0),
+    any(down0_sky > 1 | down0_sky < 0),
+    all(down_sky + down0_sky == 1)
   )
 
   ##########
@@ -244,5 +262,4 @@ sw_two_stream <- function(czen,
     light_beam_level = light_beam_level, # Direct light level, by cohort (nwl x ncoh)
     light_diff_level = light_diff_level  # Diffuse light level, by cohort (nwl x ncoh)
   )
-
 }
